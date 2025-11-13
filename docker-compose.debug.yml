@@ -1,0 +1,20 @@
+services:
+  collegare:
+    volumes:
+      - .:/app/
+    env_file:
+      - .env
+    build:
+      context: ./
+      dockerfile: Dockerfile.debug
+    ports:
+      - '1234:80'
+      - '2345:2345'
+    networks:
+      - dev-net
+    entrypoint: dlv --listen=:2345 --headless=true --api-version=2 exec ./collegare
+
+networks:
+  dev-net:
+    external: true
+    name: dev-net

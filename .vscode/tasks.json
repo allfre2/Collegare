@@ -1,0 +1,22 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "runDebugContainer",
+            "type": "shell",
+            "command": "docker-compose -f docker-compose.debug.yml up --remove-orphans",
+            "isBackground": true,
+            "problemMatcher":
+                {
+                    "pattern": {
+                        "regexp": "API server listening at:", // Adjust regexp to match your task's 'ready' output
+                        "file": 1,
+                        "line": 2,
+                        "column": 3,
+                        "severity": 4,
+                        "message": 5
+                    }
+                }
+        }
+    ]
+}

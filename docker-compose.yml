@@ -1,5 +1,5 @@
 services:
-  collegare-service:
+  collegare:
     volumes:
       - .:/app/
     env_file:
