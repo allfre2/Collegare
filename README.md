@@ -8,3 +8,5 @@ A first approach at go trying to get familiar with WebRTC.
 - [Gin Web Framework](https://gin-gonic.com/)
 - [Gorilla WebSockets](https://github.com/gorilla/websocket)
 - [envconfig](https://github.com/kelseyhightower/envconfig)
+- ... In progress
+
