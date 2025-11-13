@@ -1,0 +1,19 @@
+services:
+  collegare-service:
+    volumes:
+      - .:/app/
+    env_file:
+      - .env
+    build:
+      context: ./
+      dockerfile: Dockerfile
+    ports:
+      - '1234:80'
+    networks:
+      - dev-net
+    entrypoint: sh -c 'watcher'
+
+networks:
+  dev-net:
+    external: true
+    name: dev-net
