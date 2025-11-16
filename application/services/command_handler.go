@@ -1,6 +1,9 @@
 package services
 
+import "collegare/domain"
+
 type CommandHandler interface {
-	Parse(command string) (any, error)
-	Handle(command string) (string, error)
+	Parse(string) (any, error)
+	Handle(string) (string, error)
+	GetCallConfiguration() (*domain.CallConfiguration, error)
 }

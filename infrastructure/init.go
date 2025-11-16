@@ -3,9 +3,11 @@ package infrastructure
 import (
 	"net/http"
 
+	repositories "collegare/application/persistence"
 	interfaces "collegare/application/services"
 	"collegare/infrastructure/config"
 	"collegare/infrastructure/controllers"
+	"collegare/infrastructure/persistence"
 	"collegare/infrastructure/services"
 
 	"github.com/gorilla/websocket"
@@ -14,8 +16,17 @@ import (
 // Configuration
 var AppConfig *config.AppConfiguration = config.ParseConfiguration()
 
+// Persistence
+var callFlowRepository repositories.CallFlowRepository = persistence.NewMockCallFlowRepository()
+
 // Services
-var commandHandler interfaces.CommandHandler = services.NewDefaultCommandHandler()
+var fileCache interfaces.FileCache = services.NewMockFileCache()
+var callHandler interfaces.CallHandler = services.NewWebRTCService(
+	AppConfig.WebRTC.STUNServers,
+	callFlowRepository,
+	fileCache,
+)
+var commandHandler interfaces.CommandHandler = services.NewDefaultCommandHandler(callHandler)
 var sessionService interfaces.SessionService = services.NewWebSocketService(websocket.Upgrader{
 	ReadBufferSize:  AppConfig.Session.WebSockets.ReadBufferSize,
 	WriteBufferSize: AppConfig.Session.WebSockets.WriteBufferSize,

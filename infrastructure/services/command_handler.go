@@ -1,21 +1,24 @@
 package services
 
 import (
+	"collegare/application/services"
 	"collegare/domain"
-	"collegare/domain/constants"
-	infra "collegare/infrastructure/constants"
+	"collegare/infrastructure/errors"
 	"collegare/infrastructure/util"
 )
 
 type DefaultCommandHandler struct {
+	callHandler services.CallHandler
 }
 
-func NewDefaultCommandHandler() *DefaultCommandHandler {
-	return &DefaultCommandHandler{}
+func NewDefaultCommandHandler(callHandler services.CallHandler) *DefaultCommandHandler {
+	return &DefaultCommandHandler{
+		callHandler: callHandler,
+	}
 }
 
-func (h *DefaultCommandHandler) Parse(command string) (any, error) {
-	cmd, err := util.Deserialize[domain.Command](command)
+func (h *DefaultCommandHandler) Parse(message string) (any, error) {
+	cmd, err := util.Deserialize[domain.SessionMessage](message)
 	if err != nil {
 		return nil, err
 	}
@@ -23,28 +26,28 @@ func (h *DefaultCommandHandler) Parse(command string) (any, error) {
 	var result any
 
 	switch cmd.Type {
-	case constants.Connect:
-		result, err = util.Deserialize[domain.ConnectCommand](command)
-	case constants.Login:
-		result, err = util.Deserialize[domain.LoginCommand](command)
-	case constants.Call:
-		result, err = util.Deserialize[domain.CallCommand](command)
-	case constants.HangUp:
-		result, err = util.Deserialize[domain.HangUpCommand](command)
-	case constants.Digit:
-		result, err = util.Deserialize[domain.DigitCommand](command)
-	case constants.Disconnect:
-		result, err = util.Deserialize[domain.DisconnectCommand](command)
+	case domain.Connect:
+		result, err = util.Deserialize[domain.ConnectCommand](message)
+	case domain.Login:
+		result, err = util.Deserialize[domain.LoginCommand](message)
+	case domain.Call:
+		result, err = util.Deserialize[domain.CallCommand](message)
+	case domain.HangUp:
+		result, err = util.Deserialize[domain.HangUpCommand](message)
+	case domain.Digit:
+		result, err = util.Deserialize[domain.DigitCommand](message)
+	case domain.Disconnect:
+		result, err = util.Deserialize[domain.DisconnectCommand](message)
 	default:
-		return nil, infra.ErrInvalidCommand
+		return nil, errors.ErrInvalidCommand
 	}
 
 	return result, err
 }
 
-func (h *DefaultCommandHandler) Handle(commandStr string) (string, error) {
+func (h *DefaultCommandHandler) Handle(message string) (string, error) {
 
-	command, err := h.Parse(commandStr)
+	command, err := h.Parse(message)
 	if err != nil {
 		return "", err
 	}
@@ -65,8 +68,12 @@ func (h *DefaultCommandHandler) Handle(commandStr string) (string, error) {
 	case *domain.DisconnectCommand:
 		response, _ = util.Serialize(cmd)
 	default:
-		response = infra.ErrInvalidCommand.Error()
+		response = errors.ErrInvalidCommand.Error()
 	}
 
 	return "=> Received: \n" + response + "\n", nil
+}
+
+func (h *DefaultCommandHandler) GetCallConfiguration() (*domain.CallConfiguration, error) {
+	return h.callHandler.GetConfiguration(), nil
 }

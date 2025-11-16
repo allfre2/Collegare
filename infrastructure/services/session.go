@@ -3,7 +3,8 @@ package services
 import (
 	"collegare/application/services"
 	"collegare/domain"
-	"collegare/infrastructure/constants"
+	"collegare/infrastructure/errors"
+	"collegare/infrastructure/util"
 	"fmt"
 
 	"github.com/gin-gonic/gin"
@@ -25,7 +26,7 @@ func NewWebSocketService(upgrader websocket.Upgrader, cmdHandler services.Comman
 func (ws *WebSocketService) Connect(request *domain.SessionRequest) (*domain.Session, error) {
 	ctx, ok := request.Context.(*gin.Context)
 	if !ok {
-		return nil, constants.ErrInvalidContext
+		return nil, errors.ErrInvalidContext
 	}
 
 	connection, err := ws.upgrader.Upgrade(ctx.Writer, ctx.Request, nil)
@@ -35,7 +36,7 @@ func (ws *WebSocketService) Connect(request *domain.SessionRequest) (*domain.Ses
 
 	session := domain.NewSession()
 
-	go ws.SpinSession(connection, session)
+	go ws.spinSession(connection, session)
 
 	return session, nil
 }
@@ -44,9 +45,27 @@ func (ws *WebSocketService) Disconnect(session *domain.Session) error {
 	return nil
 }
 
-func (ws *WebSocketService) SpinSession(connection *websocket.Conn, session *domain.Session) {
-	connection.SetCloseHandler(closeHandler(session))
+func (ws *WebSocketService) GetSessionConfiguration() (*domain.ConfigurationMessage, error) {
+	callConfig, err := ws.cmdHandler.GetCallConfiguration()
+	if err != nil {
+		return nil, err
+	}
+
+	message := domain.ConfigurationMessage{}
+	message.Type = domain.SessionConfig
+	message.CallConfiguration = *callConfig
+
+	return &message, nil
+}
+
+func (ws *WebSocketService) spinSession(connection *websocket.Conn, session *domain.Session) {
+	connection.SetCloseHandler(websocketCloseHandler(session))
 	defer connection.Close()
+
+	if err := ws.sendConfigMessage(connection); err != nil {
+		fmt.Println("Couldn't send configuration message")
+		return // (!)
+	}
 
 	for {
 		messageType, message, err := connection.ReadMessage()
@@ -69,9 +88,28 @@ func (ws *WebSocketService) SpinSession(connection *websocket.Conn, session *dom
 	}
 }
 
-func closeHandler(session *domain.Session) func(code int, text string) error {
+func websocketCloseHandler(session *domain.Session) func(code int, text string) error {
 	return func(code int, text string) error {
 		fmt.Println("Closing connection: " + session.Id.String())
 		return nil
 	}
+}
+
+func (ws *WebSocketService) sendConfigMessage(connection *websocket.Conn) error {
+	config, err := ws.GetSessionConfiguration()
+	if err != nil {
+		return err
+	}
+
+	message, err := util.Serialize(config)
+	if err != nil {
+		return err
+	}
+
+	if err := connection.WriteMessage(websocket.TextMessage, []byte(message)); err != nil {
+		fmt.Println("couldn't send session configuration")
+		return err
+	}
+
+	return nil
 }
