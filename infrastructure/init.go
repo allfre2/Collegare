@@ -26,7 +26,7 @@ var callHandler interfaces.CallHandler = services.NewWebRTCService(
 	AppConfig.WebRTC.STUNServers,
 	callFlowRepository,
 	fileCache,
-	sessionCache,
+	&sessionCache,
 )
 var commandHandler interfaces.CommandHandler = services.NewDefaultCommandHandler(callHandler)
 var sessionService interfaces.SessionService = services.NewWebSocketService(websocket.Upgrader{

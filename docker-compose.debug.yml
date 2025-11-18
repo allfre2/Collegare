@@ -1,5 +1,5 @@
 services:
-  collegare:
+  collegare-debug:
     volumes:
       - .:/app/
     env_file:

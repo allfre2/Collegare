@@ -4,7 +4,6 @@ import (
 	"collegare/application/persistence"
 	"collegare/application/services"
 	"collegare/domain"
-	"fmt"
 )
 
 // Custom parameters for webrtc
@@ -19,10 +18,10 @@ type WebRTCService struct {
 	Configuration domain.CallConfiguration
 	callFlowRepo  persistence.CallFlowRepository
 	fileCache     services.FileCache
-	sessionCache  services.SessionCache
+	sessionCache  *services.SessionCache
 }
 
-func NewWebRTCService(ICEServers []string, callFlowRepo persistence.CallFlowRepository, fileCache services.FileCache, sessionCache services.SessionCache) *WebRTCService {
+func NewWebRTCService(ICEServers []string, callFlowRepo persistence.CallFlowRepository, fileCache services.FileCache, sessionCache *services.SessionCache) *WebRTCService {
 	return &WebRTCService{
 		ICEServers: ICEServers,
 		Configuration: domain.CallConfiguration{
@@ -38,17 +37,19 @@ func NewWebRTCService(ICEServers []string, callFlowRepo persistence.CallFlowRepo
 }
 
 func (s *WebRTCService) Route(cmd *domain.CallCommand, session *domain.Session) (*domain.CallCommand, error) {
-	// Signaling code ...
 	if cmd.Mode == domain.AdHoc {
 		// Perform signaling between callers
-		adHocSession := s.sessionCache.GetAdHocSession(cmd.AdHocId)
-		if adHocSession == nil {
-			s.sessionCache.CreateAdHocSession(&domain.AdHocSession{
-				Id:     cmd.AdHocId,
-				Caller: session,
-				Offer:  cmd.Parameters[SessionDescriptionParam],
-			})
-
+		adHocSession, previouslyCreated, err := (*s.sessionCache).ReadInsertAdHocSession(cmd.AdHocId, &domain.AdHocSession{
+			Id:     cmd.AdHocId,
+			Caller: session,
+			Offer:  cmd.Parameters[SessionDescriptionParam],
+		})
+		if err != nil {
+			return nil, err
+		}
+		// fmt.Println("AdHoc Session: ", adHocSession, previouslyCreated)
+		if !previouslyCreated {
+			// Session was created now. Caller must wait for Calle to try to connect
 			return nil, nil
 		} else if adHocSession.Calle == nil {
 			adHocSession.Calle = session
@@ -62,8 +63,8 @@ func (s *WebRTCService) Route(cmd *domain.CallCommand, session *domain.Session) 
 			// Now It's an answer from the Calle
 			adHocSession.Caller.Outbound <- cmd
 			// Answer has been seent
-			adHocSession.Answer = cmd.Parameters[SessionDescriptionParam]
-			fmt.Println("AdHocSession: ", adHocSession)
+
+			(*s.sessionCache).RemoveAdHocRecord(adHocSession.Id)
 
 			return nil, nil
 		}

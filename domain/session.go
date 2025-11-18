@@ -17,7 +17,6 @@ type AdHocSession struct {
 	Caller *Session
 	Calle  *Session
 	Offer  any
-	Answer any
 }
 
 func NewSession() *Session {
@@ -27,8 +26,4 @@ func NewSession() *Session {
 		Inbound:  make(chan *CallCommand),
 		Outbound: make(chan *CallCommand),
 	}
-}
-
-func (s *AdHocSession) IsEstablished() bool {
-	return s.Caller != nil && s.Calle != nil && s.Offer != nil && s.Answer != nil
 }

@@ -83,7 +83,7 @@ func (h *DefaultCommandHandler) Handle(message string, session *domain.Session) 
 	case *domain.DigitCommand:
 		response, _ = util.Serialize(cmd)
 	case *domain.DisconnectCommand:
-		response, _ = util.Serialize(cmd)
+		return cmd.Type, nil
 	default:
 		response = errors.ErrInvalidCommand.Error()
 	}

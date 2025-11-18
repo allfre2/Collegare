@@ -6,6 +6,7 @@ import (
 	"collegare/infrastructure/errors"
 	"collegare/infrastructure/util"
 	"fmt"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
@@ -86,6 +87,12 @@ func (ws *WebSocketService) spinSession(connection *websocket.Conn, session *dom
 			continue
 		}
 
+		if response == domain.Disconnect {
+			closeWebsocket(connection, 0, response)
+			fmt.Println("Closing connection: " + session.Id.String())
+			return
+		}
+
 		err = connection.WriteMessage(messageType, []byte(response))
 		if err != nil {
 			fmt.Println("error sending response")
@@ -105,6 +112,17 @@ func websocketCloseHandler(session *domain.Session) func(code int, text string) 
 	return func(code int, text string) error {
 		fmt.Println("Closing connection: " + session.Id.String())
 		return nil
+	}
+}
+
+func closeWebsocket(connection *websocket.Conn, code int, reason string) {
+	message := websocket.FormatCloseMessage(code, reason)
+
+	connection.SetWriteDeadline(time.Now().Add(5 * time.Second))
+
+	// Send the close message (Close control frame)
+	if err := connection.WriteMessage(websocket.CloseMessage, message); err != nil {
+		fmt.Println("websocket close message error:", err)
 	}
 }
 
