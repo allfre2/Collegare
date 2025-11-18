@@ -21,10 +21,12 @@ var callFlowRepository repositories.CallFlowRepository = persistence.NewMockCall
 
 // Services
 var fileCache interfaces.FileCache = services.NewMockFileCache()
+var sessionCache interfaces.SessionCache = services.NewMockSessionCache()
 var callHandler interfaces.CallHandler = services.NewWebRTCService(
 	AppConfig.WebRTC.STUNServers,
 	callFlowRepository,
 	fileCache,
+	sessionCache,
 )
 var commandHandler interfaces.CommandHandler = services.NewDefaultCommandHandler(callHandler)
 var sessionService interfaces.SessionService = services.NewWebSocketService(websocket.Upgrader{

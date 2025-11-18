@@ -5,6 +5,7 @@ import (
 	"collegare/domain"
 	"collegare/infrastructure/errors"
 	"collegare/infrastructure/util"
+	"fmt"
 )
 
 type DefaultCommandHandler struct {
@@ -45,10 +46,11 @@ func (h *DefaultCommandHandler) Parse(message string) (any, error) {
 	return result, err
 }
 
-func (h *DefaultCommandHandler) Handle(message string) (string, error) {
+func (h *DefaultCommandHandler) Handle(message string, session *domain.Session) (string, error) {
 
 	command, err := h.Parse(message)
 	if err != nil {
+		fmt.Println("Error Parsing command.", err)
 		return "", err
 	}
 
@@ -60,6 +62,21 @@ func (h *DefaultCommandHandler) Handle(message string) (string, error) {
 	case *domain.LoginCommand:
 		response, _ = util.Serialize(cmd)
 	case *domain.CallCommand:
+		if cmd.Mode == domain.AdHoc {
+			fmt.Println("matched callCommand type.")
+			continuation, err := h.callHandler.Route(cmd, session)
+			if err != nil {
+				fmt.Println("call handler Route error")
+				return "", err
+			}
+
+			if continuation != nil {
+				response, _ := util.Serialize(continuation)
+				return response, nil
+			}
+
+			return "", nil
+		}
 		response, _ = util.Serialize(cmd)
 	case *domain.HangUpCommand:
 		response, _ = util.Serialize(cmd)

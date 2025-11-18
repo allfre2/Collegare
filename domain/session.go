@@ -7,12 +7,28 @@ type SessionRequest struct {
 }
 
 type Session struct {
-	Id uuid.UUID
+	Id       uuid.UUID
+	Inbound  chan *CallCommand
+	Outbound chan *CallCommand
+}
+
+type AdHocSession struct {
+	Id     uuid.UUID
+	Caller *Session
+	Calle  *Session
+	Offer  any
+	Answer any
 }
 
 func NewSession() *Session {
 	id, _ := uuid.NewV7()
 	return &Session{
-		Id: id,
+		Id:       id,
+		Inbound:  make(chan *CallCommand),
+		Outbound: make(chan *CallCommand),
 	}
+}
+
+func (s *AdHocSession) IsEstablished() bool {
+	return s.Caller != nil && s.Calle != nil && s.Offer != nil && s.Answer != nil
 }

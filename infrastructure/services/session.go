@@ -36,6 +36,7 @@ func (ws *WebSocketService) Connect(request *domain.SessionRequest) (*domain.Ses
 
 	session := domain.NewSession()
 
+	go ws.routingMessages(connection, session)
 	go ws.spinSession(connection, session)
 
 	return session, nil
@@ -76,15 +77,27 @@ func (ws *WebSocketService) spinSession(connection *websocket.Conn, session *dom
 
 		fmt.Printf("\nReceived: \n%s\n", message)
 
-		response, err := ws.cmdHandler.Handle(string(message))
+		response, err := ws.cmdHandler.Handle(string(message), session)
 		if err != nil {
 			fmt.Println("error handling command")
+		}
+
+		if response == "" {
+			continue
 		}
 
 		err = connection.WriteMessage(messageType, []byte(response))
 		if err != nil {
 			fmt.Println("error sending response")
 		}
+	}
+}
+
+func (ws *WebSocketService) routingMessages(connection *websocket.Conn, session *domain.Session) {
+	for msg := range session.Outbound {
+		fmt.Println("outbound channel: ", msg)
+		message, _ := util.Serialize(msg)
+		connection.WriteMessage(websocket.TextMessage, []byte(message))
 	}
 }
 

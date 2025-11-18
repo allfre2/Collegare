@@ -45,6 +45,7 @@ type CallCommand struct {
 	Organization string
 	Flow         uuid.UUID
 	AdHocId      uuid.UUID
+	Parameters   map[string]any
 }
 
 type HangUpCommand struct {
