@@ -13,10 +13,12 @@ type Session struct {
 }
 
 type AdHocSession struct {
-	Id     uuid.UUID
-	Caller *Session
-	Calle  *Session
-	Offer  any
+	Id             uuid.UUID
+	Caller         *Session
+	Calle          *Session
+	Offer          any
+	CallerComplete bool
+	CalleComplete  bool
 }
 
 func NewSession() *Session {
@@ -26,4 +28,8 @@ func NewSession() *Session {
 		Inbound:  make(chan *CallCommand),
 		Outbound: make(chan *CallCommand),
 	}
+}
+
+func (s *AdHocSession) IsComplete() bool {
+	return s.CallerComplete && s.CalleComplete
 }

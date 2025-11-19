@@ -11,6 +11,7 @@ const (
 	ICEServersParam         = "ICEServers"
 	SessionDescriptionParam = "SessionDescription"
 	IsOfferParam            = "IsOffer"
+	IsCompleteParam         = "IsComplete"
 )
 
 type WebRTCService struct {
@@ -47,24 +48,44 @@ func (s *WebRTCService) Route(cmd *domain.CallCommand, session *domain.Session) 
 		if err != nil {
 			return nil, err
 		}
-		// fmt.Println("AdHoc Session: ", adHocSession, previouslyCreated)
+
 		if !previouslyCreated {
 			// Session was created now. Caller must wait for Calle to try to connect
 			return nil, nil
 		} else if adHocSession.Calle == nil {
 			adHocSession.Calle = session
 			// Reply back with the offer
-			cmd.Parameters[IsOfferParam] = true
+			cmd.Parameters[IsOfferParam] = true // (!) Remove this field ?
 			cmd.Parameters[SessionDescriptionParam] = adHocSession.Offer
 
 			// Respond with cached caller's offer
 			return cmd, nil
-		} else if adHocSession.Calle.Id == session.Id {
-			// Now It's an answer from the Calle
-			adHocSession.Caller.Outbound <- cmd
-			// Answer has been seent
+		} else if adHocSession.Calle.Id == session.Id { // From here down it's all signaling between peers
+			isComplete := cmd.Parameters[IsCompleteParam]
 
-			(*s.sessionCache).RemoveAdHocRecord(adHocSession.Id)
+			if isComplete != nil && isComplete.(bool) {
+				adHocSession.CalleComplete = true
+
+				if adHocSession.IsComplete() {
+					(*s.sessionCache).RemoveAdHocRecord(adHocSession.Id)
+				}
+			} else {
+				adHocSession.Caller.Outbound <- cmd
+			}
+
+			return nil, nil
+		} else if adHocSession.Caller.Id == session.Id {
+			isComplete := cmd.Parameters[IsCompleteParam]
+
+			if isComplete != nil && isComplete.(bool) {
+				adHocSession.CallerComplete = true
+
+				if adHocSession.IsComplete() {
+					(*s.sessionCache).RemoveAdHocRecord(adHocSession.Id)
+				}
+			} else {
+				adHocSession.Calle.Outbound <- cmd
+			}
 
 			return nil, nil
 		}
