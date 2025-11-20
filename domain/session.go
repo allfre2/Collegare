@@ -30,6 +30,6 @@ func NewSession() *Session {
 	}
 }
 
-func (s *AdHocSession) IsComplete() bool {
+func (s *AdHocSession) IsConnected() bool {
 	return s.CallerComplete && s.CalleComplete
 }

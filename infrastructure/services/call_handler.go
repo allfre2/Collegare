@@ -4,6 +4,8 @@ import (
 	"collegare/application/persistence"
 	"collegare/application/services"
 	"collegare/domain"
+
+	"github.com/gofrs/uuid/v5"
 )
 
 // Custom parameters for webrtc
@@ -60,33 +62,10 @@ func (s *WebRTCService) Route(cmd *domain.CallCommand, session *domain.Session) 
 
 			// Respond with cached caller's offer
 			return cmd, nil
-		} else if adHocSession.Calle.Id == session.Id { // From here down it's all signaling between peers
-			isComplete := cmd.Parameters[IsCompleteParam]
-
-			if isComplete != nil && isComplete.(bool) {
-				adHocSession.CalleComplete = true
-
-				if adHocSession.IsComplete() {
-					(*s.sessionCache).RemoveAdHocRecord(adHocSession.Id)
-				}
-			} else {
-				adHocSession.Caller.Outbound <- cmd
+		} else { // After this point just relay all messages until a completion message is received
+			if ForwardIfNotConnected(cmd, adHocSession, session.Id) {
+				(*s.sessionCache).RemoveAdHocRecord(adHocSession.Id) // Connection complete
 			}
-
-			return nil, nil
-		} else if adHocSession.Caller.Id == session.Id {
-			isComplete := cmd.Parameters[IsCompleteParam]
-
-			if isComplete != nil && isComplete.(bool) {
-				adHocSession.CallerComplete = true
-
-				if adHocSession.IsComplete() {
-					(*s.sessionCache).RemoveAdHocRecord(adHocSession.Id)
-				}
-			} else {
-				adHocSession.Calle.Outbound <- cmd
-			}
-
 			return nil, nil
 		}
 	}
@@ -97,4 +76,25 @@ func (s *WebRTCService) Route(cmd *domain.CallCommand, session *domain.Session) 
 
 func (s *WebRTCService) GetConfiguration() *domain.CallConfiguration {
 	return &s.Configuration
+}
+
+func ForwardIfNotConnected(cmd *domain.CallCommand, adHocSession *domain.AdHocSession, sessionId uuid.UUID) bool {
+	var destination *domain.Session
+
+	isComplete := cmd.Parameters[IsCompleteParam]
+
+	if sessionId == adHocSession.Calle.Id {
+		adHocSession.CalleComplete = isComplete != nil && isComplete.(bool)
+		destination = adHocSession.Caller
+	} else {
+		adHocSession.CallerComplete = isComplete != nil && isComplete.(bool)
+		destination = adHocSession.Calle
+	}
+
+	if !adHocSession.IsConnected() {
+		destination.Outbound <- cmd
+		return false
+	}
+
+	return true
 }
