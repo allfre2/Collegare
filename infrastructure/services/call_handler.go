@@ -54,7 +54,9 @@ func (s *WebRTCService) Route(cmd *domain.CallCommand, session *domain.Session) 
 		if !previouslyCreated {
 			// Session was created now. Caller must wait for Calle to try to connect
 			return nil, nil
-		} else if adHocSession.Calle == nil {
+		}
+
+		if adHocSession.Calle == nil {
 			adHocSession.Calle = session
 			// Reply back with the offer
 			cmd.Parameters[IsOfferParam] = true // (!) Remove this field ?
@@ -62,12 +64,15 @@ func (s *WebRTCService) Route(cmd *domain.CallCommand, session *domain.Session) 
 
 			// Respond with cached caller's offer
 			return cmd, nil
-		} else { // After this point just relay all messages until a completion message is received
-			if ForwardIfNotConnected(cmd, adHocSession, session.Id) {
-				(*s.sessionCache).RemoveAdHocRecord(adHocSession.Id) // Connection complete
-			}
-			return nil, nil
 		}
+
+		// After this point just relay all messages until a completion message is received
+
+		if ForwardIfNotConnected(cmd, adHocSession, session.Id) {
+			(*s.sessionCache).RemoveAdHocRecord(adHocSession.Id) // Connection complete
+		}
+
+		return nil, nil
 	}
 
 	// Otherwise do nothing
@@ -86,9 +91,15 @@ func ForwardIfNotConnected(cmd *domain.CallCommand, adHocSession *domain.AdHocSe
 	if sessionId == adHocSession.Calle.Id {
 		adHocSession.CalleComplete = isComplete != nil && isComplete.(bool)
 		destination = adHocSession.Caller
-	} else {
+	}
+
+	if sessionId == adHocSession.Caller.Id {
 		adHocSession.CallerComplete = isComplete != nil && isComplete.(bool)
 		destination = adHocSession.Calle
+	}
+
+	if destination == nil {
+		return false
 	}
 
 	if !adHocSession.IsConnected() {
