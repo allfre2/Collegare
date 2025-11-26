@@ -14,6 +14,13 @@ type AppConfiguration struct {
 		Port string `envconfig:"GIN_PORT" json:"Port"`
 	} `json:"Server"`
 
+	Database struct {
+		Host     string `envconfig:"DB_HOST"`
+		Port     string `envconfig:"DB_PORT"`
+		User     string `envconfig:"DB_USER"`
+		Password string `envconfig:"DB_PASSWORD"`
+	} `json:"Database"`
+
 	Session struct {
 		WebSockets struct {
 			WriteBufferSize int `envconfig:"WEBSOCKETS_WRITE_BUFFER_SIZE" json:"WriteBufferSize"`
@@ -22,7 +29,7 @@ type AppConfiguration struct {
 	} `json:"Session"`
 
 	WebRTC struct {
-		STUNServers []string `envconfig:"WEBRTC_STUN_SERVERS" json:"STUNServers"`
+		ICEServers []string `envconfig:"WEBRTC_ICE_SERVERS" json:"ICEServers"`
 	} `json:"WebRTC"`
 }
 

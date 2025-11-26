@@ -30,6 +30,10 @@ services:
     networks:
       - dev-net
     entrypoint: sh -c 'goose -dir infrastructure/persistence/migrations mysql "admin:password@tcp(collegare-db:3306)/collegare?parseTime=true&multiStatements=true" up && watcher'
+    depends_on:
+      collegare-db:
+        condition: service_healthy
+        restart: true
 
 volumes:
   collegare-db:

@@ -8,6 +8,7 @@ require (
 	github.com/gorilla/websocket v1.5.3
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/rs/cors/wrapper/gin v0.0.0-20240830163046-1084d89a1692
+	gorm.io/gorm v1.31.1
 )
 
 require (
@@ -45,5 +46,4 @@ require (
 	golang.org/x/text v0.27.0 // indirect
 	golang.org/x/tools v0.34.0 // indirect
 	google.golang.org/protobuf v1.36.9 // indirect
-	gorm.io/gorm v1.31.1 // indirect
 )

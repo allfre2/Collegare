@@ -23,7 +23,7 @@ var callFlowRepository repositories.CallFlowRepository = persistence.NewMockCall
 var fileCache interfaces.FileCache = services.NewMockFileCache()
 var sessionCache interfaces.SessionCache = services.NewMockSessionCache()
 var callHandler interfaces.CallHandler = services.NewWebRTCService(
-	AppConfig.WebRTC.STUNServers,
+	AppConfig.WebRTC.ICEServers,
 	callFlowRepository,
 	fileCache,
 	&sessionCache,
