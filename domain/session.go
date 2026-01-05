@@ -8,8 +8,7 @@ type SessionRequest struct {
 
 type Session struct {
 	Id       uuid.UUID
-	Inbound  chan *CallCommand
-	Outbound chan *CallCommand
+	Outbound chan any
 }
 
 type AdHocSession struct {
@@ -22,12 +21,15 @@ type AdHocSession struct {
 }
 
 func NewSession() *Session {
-	id, _ := uuid.NewV7()
+	id, _ := uuid.NewV7() // handle errors
 	return &Session{
 		Id:       id,
-		Inbound:  make(chan *CallCommand),
-		Outbound: make(chan *CallCommand),
+		Outbound: make(chan any),
 	}
+}
+
+func (s *Session) Close() {
+	close(s.Outbound)
 }
 
 func (s *AdHocSession) IsConnected() bool {

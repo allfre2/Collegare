@@ -6,10 +6,10 @@ import (
 	"strings"
 )
 
-func Serialize[T any](obj *T) (string, error) {
+func Serialize(obj any) (string, error) {
 	var buffer bytes.Buffer
 	encoder := json.NewEncoder(&buffer)
-	if err := encoder.Encode(*obj); err != nil {
+	if err := encoder.Encode(obj); err != nil {
 		return "", err
 	}
 

@@ -63,7 +63,8 @@ func (s *WebRTCService) Route(cmd *domain.CallCommand, session *domain.Session) 
 			cmd.Parameters[SessionDescriptionParam] = adHocSession.Offer
 
 			// Respond with cached caller's offer
-			return cmd, nil
+			session.Outbound <- cmd
+			return nil, nil
 		}
 
 		// After this point just relay all messages until a completion message is received

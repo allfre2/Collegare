@@ -37,8 +37,7 @@ func (ws *WebSocketService) Connect(request *domain.SessionRequest) (*domain.Ses
 
 	session := domain.NewSession()
 
-	go ws.routingMessages(connection, session)
-	go ws.spinSession(connection, session)
+	ws.spinSession(connection, session)
 
 	return session, nil
 }
@@ -62,15 +61,22 @@ func (ws *WebSocketService) GetSessionConfiguration() (*domain.ConfigurationMess
 
 func (ws *WebSocketService) spinSession(connection *websocket.Conn, session *domain.Session) {
 	connection.SetCloseHandler(websocketCloseHandler(session))
-	defer connection.Close()
+	// defer connection.Close()
 
-	if err := ws.sendConfigMessage(connection); err != nil {
+	go ws.inboundMessages(connection, session)
+	go ws.outboundMessages(connection, session)
+
+	if err := ws.sendConfigMessage(session); err != nil {
 		fmt.Println("Couldn't send configuration message")
 		return // (!)
 	}
+}
+
+func (ws *WebSocketService) inboundMessages(connection *websocket.Conn, session *domain.Session) {
+	defer connection.Close() // ?
 
 	for {
-		messageType, message, err := connection.ReadMessage()
+		_, message, err := connection.ReadMessage()
 		if err != nil {
 			fmt.Println("error receiving command: " + err.Error() + ", Id: " + session.Id.String())
 			break //(!)
@@ -83,24 +89,16 @@ func (ws *WebSocketService) spinSession(connection *websocket.Conn, session *dom
 			fmt.Println("error handling command")
 		}
 
-		if response == "" {
-			continue
-		}
-
 		if response == domain.Disconnect {
-			closeWebsocket(connection, 0, response)
 			fmt.Println("Closing connection: " + session.Id.String())
+			session.Close()
+			closeWebsocket(connection, 0, response)
 			return
-		}
-
-		err = connection.WriteMessage(messageType, []byte(response))
-		if err != nil {
-			fmt.Println("error sending response")
 		}
 	}
 }
 
-func (ws *WebSocketService) routingMessages(connection *websocket.Conn, session *domain.Session) {
+func (ws *WebSocketService) outboundMessages(connection *websocket.Conn, session *domain.Session) {
 	for msg := range session.Outbound {
 		fmt.Println("outbound channel: ", msg)
 		message, _ := util.Serialize(msg)
@@ -126,21 +124,13 @@ func closeWebsocket(connection *websocket.Conn, code int, reason string) {
 	}
 }
 
-func (ws *WebSocketService) sendConfigMessage(connection *websocket.Conn) error {
+func (ws *WebSocketService) sendConfigMessage(session *domain.Session) error {
 	config, err := ws.GetSessionConfiguration()
 	if err != nil {
 		return err
 	}
 
-	message, err := util.Serialize(config)
-	if err != nil {
-		return err
-	}
-
-	if err := connection.WriteMessage(websocket.TextMessage, []byte(message)); err != nil {
-		fmt.Println("couldn't send session configuration")
-		return err
-	}
+	session.Outbound <- config
 
 	return nil
 }

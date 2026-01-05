@@ -91,15 +91,10 @@ func (CallHandler) Handle(cmd any, session *domain.Session, h *DefaultCommandHan
 	call := cmd.(*domain.CallCommand)
 	if call.Mode == domain.AdHoc {
 		fmt.Println("matched callCommand type.")
-		continuation, err := h.callHandler.Route(call, session)
+		_, err := h.callHandler.Route(call, session)
 		if err != nil {
 			fmt.Println("call handler Route error")
 			return "", err
-		}
-
-		if continuation != nil {
-			response, _ := util.Serialize(continuation)
-			return response, nil
 		}
 
 		return "", nil

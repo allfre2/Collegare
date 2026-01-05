@@ -4,14 +4,14 @@ RUN apk update
 
 RUN apk add --no-cache git build-base bash curl
 
-WORKDIR /app
-
 COPY go.mod go.sum ./
 
 RUN go mod download
 
-RUN go install github.com/pressly/goose/v3/cmd/goose@latest
+COPY . .
 
-RUN go install github.com/xhit/go-watcher/cmd/watcher@v0.3.0
+RUN go build -gcflags="all=-N -l" -o collegare .
 
-ENTRYPOINT ["watcher"]
+RUN go install github.com/go-delve/delve/cmd/dlv@latest
+
+ENTRYPOINT ["dlv", "--listen=:2345", "--headless=true", "--api-version=2", "exec", "./collegare"]

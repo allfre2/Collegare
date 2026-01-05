@@ -1,22 +1,4 @@
 services:
-  collegare-db:
-    image: mysql:8.4.4
-    volumes:
-      - collegare-db:/var/lib/mysql
-    ports:
-      - '33013:3306'
-    environment:
-      MYSQL_DATABASE: collegare
-      MYSQL_USER: admin
-      MYSQL_PASSWORD: password
-      MYSQL_ROOT_PASSWORD: password
-    healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uadmin -ppassword || exit 1"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-    networks:
-      - dev-net
   collegare:
     volumes:
       - .:/app/
@@ -27,16 +9,10 @@ services:
       dockerfile: Dockerfile
     ports:
       - '1234:80'
+      - '2345:2345'
     networks:
       - dev-net
-    entrypoint: sh -c 'goose -dir infrastructure/persistence/migrations mysql "admin:password@tcp(collegare-db:3306)/collegare?parseTime=true&multiStatements=true" up && watcher'
-    depends_on:
-      collegare-db:
-        condition: service_healthy
-        restart: true
-
-volumes:
-  collegare-db:
+    entrypoint: dlv --listen=:2345 --headless=true --api-version=2 exec ./collegare
 
 networks:
   dev-net:
