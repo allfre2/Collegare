@@ -1,7 +1,6 @@
 package services
 
 import (
-	"collegare/application/persistence"
 	"collegare/application/services"
 	"collegare/domain"
 
@@ -19,12 +18,10 @@ const (
 type WebRTCService struct {
 	ICEServers    []string
 	Configuration domain.CallConfiguration
-	callFlowRepo  persistence.CallFlowRepository
-	fileCache     services.FileCache
 	sessionCache  *services.SessionCache
 }
 
-func NewWebRTCService(ICEServers []string, callFlowRepo persistence.CallFlowRepository, fileCache services.FileCache, sessionCache *services.SessionCache) *WebRTCService {
+func NewWebRTCService(ICEServers []string, sessionCache *services.SessionCache) *WebRTCService {
 	return &WebRTCService{
 		ICEServers: ICEServers,
 		Configuration: domain.CallConfiguration{
@@ -33,58 +30,60 @@ func NewWebRTCService(ICEServers []string, callFlowRepo persistence.CallFlowRepo
 				ICEServersParam: ICEServers,
 			},
 		},
-		callFlowRepo: callFlowRepo,
-		fileCache:    fileCache,
 		sessionCache: sessionCache,
 	}
 }
 
-func (s *WebRTCService) Route(cmd *domain.CallCommand, session *domain.Session) (*domain.CallCommand, error) {
-	if cmd.Mode == domain.AdHoc {
-		// Perform signaling between callers
-		adHocSession, previouslyCreated, err := (*s.sessionCache).ReadInsertAdHocSession(cmd.AdHocId, &domain.AdHocSession{
-			Id:     cmd.AdHocId,
-			Caller: session,
-			Offer:  cmd.Parameters[SessionDescriptionParam],
-		})
-		if err != nil {
-			return nil, err
-		}
-
-		if !previouslyCreated {
-			// Session was created now. Caller must wait for Calle to try to connect
-			return nil, nil
-		}
-
-		if adHocSession.Calle == nil {
-			adHocSession.Calle = session
-			// Reply back with the offer
-			cmd.Parameters[IsOfferParam] = true // (!) Remove this field ?
-			cmd.Parameters[SessionDescriptionParam] = adHocSession.Offer
-
-			// Respond with cached caller's offer
-			session.Outbound <- cmd
-			return nil, nil
-		}
-
-		// After this point just relay all messages until a completion message is received
-
-		if ForwardIfNotConnected(cmd, adHocSession, session.Id) {
-			(*s.sessionCache).RemoveAdHocRecord(adHocSession.Id) // Connection complete
-		}
-
-		return nil, nil
+func (s *WebRTCService) Route(cmd *domain.CallCommand, session *domain.Session) error {
+	// Perform signaling between callers
+	adHocSession, previouslyCreated, err := (*s.sessionCache).ReadInsertAdHocSession(cmd.AdHocId, &domain.AdHocSession{
+		Id:     cmd.AdHocId,
+		Caller: session,
+		Offer:  cmd.Parameters[SessionDescriptionParam],
+	})
+	if err != nil {
+		return err
 	}
 
-	// Otherwise do nothing
-	return nil, nil
+	if !previouslyCreated {
+		// Session was created now. Caller must wait for Calle to try to connect
+		return nil
+	}
+
+	if adHocSession.Calle == nil {
+		adHocSession.Calle = session
+		// Reply back with the offer
+		cmd.Parameters[IsOfferParam] = true // (!) Remove this field ?
+		cmd.Parameters[SessionDescriptionParam] = adHocSession.Offer
+
+		// Respond with cached caller's offer
+		session.Outbound <- cmd
+		return nil
+	}
+
+	// After this point just relay all messages until a completion message is received
+	relayUntilConnected(cmd, adHocSession, session.Id)
+
+	return nil
+}
+
+func (s *WebRTCService) EndCall(cmd *domain.HangUpCommand, session *domain.Session) error {
+	if adHocSession := (*s.sessionCache).GetAdHocSession(cmd.AdHocId); adHocSession != nil {
+		if peer := adHocSession.GetPeer(session); peer != nil {
+			peer.Outbound <- cmd
+		}
+
+		(*s.sessionCache).RemoveAdHocRecord(adHocSession.Id)
+	}
+
+	return nil
 }
 
 func (s *WebRTCService) GetConfiguration() *domain.CallConfiguration {
 	return &s.Configuration
 }
 
-func ForwardIfNotConnected(cmd *domain.CallCommand, adHocSession *domain.AdHocSession, sessionId uuid.UUID) bool {
+func relayUntilConnected(cmd *domain.CallCommand, adHocSession *domain.AdHocSession, sessionId uuid.UUID) bool {
 	var destination *domain.Session
 
 	isComplete := cmd.Parameters[IsCompleteParam]

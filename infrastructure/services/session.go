@@ -61,19 +61,20 @@ func (ws *WebSocketService) GetSessionConfiguration() (*domain.ConfigurationMess
 
 func (ws *WebSocketService) spinSession(connection *websocket.Conn, session *domain.Session) {
 	connection.SetCloseHandler(websocketCloseHandler(session))
-	// defer connection.Close()
 
 	go ws.inboundMessages(connection, session)
 	go ws.outboundMessages(connection, session)
 
 	if err := ws.sendConfigMessage(session); err != nil {
 		fmt.Println("Couldn't send configuration message")
-		return // (!)
+		connection.Close()
+		session.Close()
+		return
 	}
 }
 
 func (ws *WebSocketService) inboundMessages(connection *websocket.Conn, session *domain.Session) {
-	defer connection.Close() // ?
+	defer connection.Close()
 
 	for {
 		_, message, err := connection.ReadMessage()
@@ -84,15 +85,14 @@ func (ws *WebSocketService) inboundMessages(connection *websocket.Conn, session 
 
 		fmt.Printf("\nReceived: \n%s\n", message)
 
-		response, err := ws.cmdHandler.Handle(string(message), session)
-		if err != nil {
+		if err := ws.cmdHandler.Handle(string(message), session); err != nil {
 			fmt.Println("error handling command")
 		}
 
-		if response == domain.Disconnect {
+		if !session.IsActive {
 			fmt.Println("Closing connection: " + session.Id.String())
 			session.Close()
-			closeWebsocket(connection, 0, response)
+			closeWebsocket(connection, 0, domain.Disconnect)
 			return
 		}
 	}

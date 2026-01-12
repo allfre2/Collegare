@@ -32,19 +32,19 @@ func (h *DefaultCommandHandler) Parse(message string) (any, error) {
 	return nil, errors.ErrInvalidCommand
 }
 
-func (h *DefaultCommandHandler) Handle(message string, session *domain.Session) (string, error) {
+func (h *DefaultCommandHandler) Handle(message string, session *domain.Session) error {
 
 	command, err := h.Parse(message)
 	if err != nil {
 		fmt.Println("Error Parsing command.", err)
-		return "", err
+		return err
 	}
 
 	if handler, ok := GetHandler(command); ok {
 		return handler.Handle(command, session, h)
 	}
 
-	return errors.ErrInvalidCommand.Error(), nil // Fix this
+	return errors.ErrInvalidCommand
 }
 
 func (h *DefaultCommandHandler) GetCallConfiguration() (*domain.CallConfiguration, error) {
@@ -68,62 +68,53 @@ func GetParser(cmdType string) (func(string) (any, error), bool) {
 
 // Handlers
 type Handler interface {
-	Handle(cmd any, session *domain.Session, h *DefaultCommandHandler) (string, error)
+	Handle(cmd any, session *domain.Session, h *DefaultCommandHandler) error
 }
 
 type ConnectHandler struct{}
 
-func (ConnectHandler) Handle(cmd any, session *domain.Session, h *DefaultCommandHandler) (string, error) {
-	response, _ := util.Serialize(cmd.(*domain.ConnectCommand))
-	return "=> Received: \n" + response + "\n", nil
+func (ConnectHandler) Handle(cmd any, session *domain.Session, h *DefaultCommandHandler) error {
+	return nil
 }
 
 type LoginHandler struct{}
 
-func (LoginHandler) Handle(cmd any, session *domain.Session, h *DefaultCommandHandler) (string, error) {
-	response, _ := util.Serialize(cmd.(*domain.LoginCommand))
-	return "=> Received: \n" + response + "\n", nil
+func (LoginHandler) Handle(cmd any, session *domain.Session, h *DefaultCommandHandler) error {
+	return nil
 }
 
 type CallHandler struct{}
 
-func (CallHandler) Handle(cmd any, session *domain.Session, h *DefaultCommandHandler) (string, error) {
+func (CallHandler) Handle(cmd any, session *domain.Session, h *DefaultCommandHandler) error {
 	call := cmd.(*domain.CallCommand)
 	if call.Mode == domain.AdHoc {
-		fmt.Println("matched callCommand type.")
-		_, err := h.callHandler.Route(call, session)
-		if err != nil {
+		if err := h.callHandler.Route(call, session); err != nil {
 			fmt.Println("call handler Route error")
-			return "", err
+			return err
 		}
-
-		return "", nil
 	}
 
-	// Other types pending to handle
-	response, _ := util.Serialize(call)
-	return "=> Received: \n" + response + "\n", nil
+	return nil
 }
 
 type HangupHandler struct{}
 
-func (HangupHandler) Handle(cmd any, session *domain.Session, h *DefaultCommandHandler) (string, error) {
-	response, _ := util.Serialize(cmd.(*domain.HangUpCommand))
-	return "=> Received: \n" + response + "\n", nil
+func (HangupHandler) Handle(cmd any, session *domain.Session, h *DefaultCommandHandler) error {
+	fmt.Println("Running HANGUP HANDLER")
+	return h.callHandler.EndCall(cmd.(*domain.HangUpCommand), session)
 }
 
 type DigitHandler struct{}
 
-func (DigitHandler) Handle(cmd any, session *domain.Session, h *DefaultCommandHandler) (string, error) {
-	response, _ := util.Serialize(cmd.(*domain.DigitCommand))
-	return "=> Received: \n" + response + "\n", nil
+func (DigitHandler) Handle(cmd any, session *domain.Session, h *DefaultCommandHandler) error {
+	return nil
 }
 
 type DisconnectHandler struct{}
 
-func (DisconnectHandler) Handle(cmd any, session *domain.Session, h *DefaultCommandHandler) (string, error) {
-	disconnect := cmd.(*domain.DisconnectCommand)
-	return disconnect.Type, nil
+func (DisconnectHandler) Handle(cmd any, session *domain.Session, h *DefaultCommandHandler) error {
+	session.Close()
+	return nil
 }
 
 var Handlers map[reflect.Type]Handler = map[reflect.Type]Handler{
