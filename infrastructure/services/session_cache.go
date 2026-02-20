@@ -7,38 +7,38 @@ import (
 	"github.com/gofrs/uuid/v5"
 )
 
-type MockSessionCache struct {
+type DefaultSessionCache struct {
 	cache      map[string]*domain.Session
 	adHocCache map[string]*domain.AdHocSession
 	mutex      sync.RWMutex
 }
 
-func NewMockSessionCache() *MockSessionCache {
-	return &MockSessionCache{
+func NewSessionCache() *DefaultSessionCache {
+	return &DefaultSessionCache{
 		cache:      make(map[string]*domain.Session),
 		adHocCache: make(map[string]*domain.AdHocSession),
 	}
 }
 
-func (c *MockSessionCache) GetSession(uuid.UUID) *domain.Session {
+func (c *DefaultSessionCache) GetSession(uuid.UUID) *domain.Session {
 	panic("Not Implemented")
 }
 
-func (c *MockSessionCache) GetAdHocSession(id uuid.UUID) *domain.AdHocSession {
+func (c *DefaultSessionCache) GetAdHocSession(id uuid.UUID) *domain.AdHocSession {
 	c.mutex.RLock()
 	defer c.mutex.RUnlock()
 
 	return c.getAdHocSession(id)
 }
 
-func (c *MockSessionCache) CreateAdHocSession(session *domain.AdHocSession) error {
+func (c *DefaultSessionCache) CreateAdHocSession(session *domain.AdHocSession) error {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
 	return c.writeAdHocSession(session)
 }
 
-func (c *MockSessionCache) ReadInsertAdHocSession(id uuid.UUID, new *domain.AdHocSession) (session *domain.AdHocSession, isPresent bool, err error) {
+func (c *DefaultSessionCache) ReadInsertAdHocSession(id uuid.UUID, new *domain.AdHocSession) (session *domain.AdHocSession, isPresent bool, err error) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
@@ -53,7 +53,7 @@ func (c *MockSessionCache) ReadInsertAdHocSession(id uuid.UUID, new *domain.AdHo
 	return new, false, nil
 }
 
-func (c *MockSessionCache) RemoveAdHocRecord(id uuid.UUID) error {
+func (c *DefaultSessionCache) RemoveAdHocRecord(id uuid.UUID) error {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
@@ -62,7 +62,7 @@ func (c *MockSessionCache) RemoveAdHocRecord(id uuid.UUID) error {
 	return nil
 }
 
-func (c *MockSessionCache) getAdHocSession(id uuid.UUID) *domain.AdHocSession {
+func (c *DefaultSessionCache) getAdHocSession(id uuid.UUID) *domain.AdHocSession {
 	if session, ok := c.adHocCache[id.String()]; ok {
 		return session
 	}
@@ -70,7 +70,7 @@ func (c *MockSessionCache) getAdHocSession(id uuid.UUID) *domain.AdHocSession {
 	return nil
 }
 
-func (c *MockSessionCache) writeAdHocSession(session *domain.AdHocSession) error {
+func (c *DefaultSessionCache) writeAdHocSession(session *domain.AdHocSession) error {
 	c.adHocCache[session.Id.String()] = session
 	return nil
 }

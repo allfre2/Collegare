@@ -17,7 +17,7 @@ var AppConfig *config.AppConfiguration = config.ParseConfiguration()
 // Persistence
 
 // Services
-var sessionCache interfaces.SessionCache = services.NewMockSessionCache()
+var sessionCache interfaces.SessionCache = services.NewSessionCache()
 var callHandler interfaces.CallHandler = services.NewWebRTCService(
 	AppConfig.WebRTC.ICEServers,
 	&sessionCache,
